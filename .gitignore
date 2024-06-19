@@ -47,6 +47,6 @@ CMakeUserPresets.json
 # Code completion and lsp config
 include/
 .clangd
-.compile_commands
+.clang_complete
 
 build/
