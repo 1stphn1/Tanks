@@ -1,34 +1,30 @@
 #pragma once
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <iostream>
-#include <random>
-#include <cmath>
-#include <ctime>
+#include <SDL_image.h>
 
 #include "Player.h"
 
-constexpr int WINDOW_WIDTH  = 1280;
-constexpr int WINDOW_HEIGHT = 720;
+constexpr int kWindowWidth  = 1280;
+constexpr int kWindowHeight = 720;
 
-constexpr float RAD_IN_DEGREES = 57.2957795;
-constexpr float PI             = 3.14159265;
+constexpr float kRadInDegrees = 57.2957795;
+constexpr float kPI           = 3.14159265;
 
-constexpr int NUMBER_OF_PICTURES = 7;
+constexpr int kNumberOfPictures = 6;
 
 #ifdef NDEBUG
     #define LOG(output) {}
 #else
-    #define LOG(output) std::cout << output << '\n'
+    #define LOG(output) std::cout << (output) << '\n'
 #endif
 
-#define PrintError() LOG(SDL_GetError())
+#define PRINT_ERROR() LOG(SDL_GetError())
 
 class Game
 {
 public:
-    static bool InitGame(const char *window_title);
+    static auto InitGame(const char *window_title) -> bool;
     static void Clean();
     static void HandleEvents();
     static void Update();
@@ -36,37 +32,38 @@ public:
     static void RenderMap();
     static void BotRaiseOrLowerBarrel(bool raise);
     static void ReduceHP(bool to_human);
-    static bool IsRunning();
-    static SDL_Renderer *GetRenderer();
+    static void ProjectileGroundImpact(int impact_x);
+    static auto IsRunning() -> bool;
+    static auto GetRenderer() -> SDL_Renderer *;
 
-    static inline Player player;
-    static inline Bot bot;
+    static inline Player sPlayer;
+    static inline Bot sBot;
 
-public:
-    static inline int  terrain[WINDOW_WIDTH];  // Stores height for each terrain column 
+    static inline int  sTerrain[kWindowWidth];  // Stores height for each terrain column
 
-    static inline bool running;
-    static inline int  width;
-    static inline int  height;
-    static inline int  player_x, player_y;
-    static inline int  bot_x, bot_y;
+    static inline bool sRunning;
+    static inline int  sWidth;
+    static inline int  sHeight;
+    static inline int  sPlayerX, sPlayerY;
+    static inline int  sBotX, sBotY;
 
-    static inline SDL_Window   *window;
-    static inline SDL_Renderer *renderer;
-    static inline SDL_Texture  *background_texture;
-    static inline SDL_Texture  *ground_texture;
-    static inline SDL_Texture  *surfacelay_texture;
-    static inline SDL_Texture  *tank_texture;
-    static inline SDL_Texture  *barrel_texture;
-    static inline SDL_Texture  *projectile_texture;
+    static inline SDL_Window   *sWindow;
+    static inline SDL_Renderer *sRenderer;
+
+    static inline SDL_Texture  *sBackgroundTexture;
+    static inline SDL_Texture  *sGroundTexture;
+    static inline SDL_Texture  *sSurfacelayTexture;
+    static inline SDL_Texture  *sTankTexture;
+    static inline SDL_Texture  *sBarrelTexture;
+    static inline SDL_Texture  *sProjectileTexture;
 }; // class Game
 
-SDL_Texture *LoadTexture(const char *file_path);
+auto LoadTexture(const char *file_path) -> SDL_Texture *;
 
 namespace Noise
 {
-    float RandomFloat();   // Generate random float between 0 and 1
-    float Noise(float x);  // Generate Perlin noise
-    float Lerp(float a, float b, float t);  // Interpolate between two values
-    void  GenerateTerrain();
+    auto RandomFloat() -> float;   // Generate random float between 0 and 1
+    auto Noise(float x_coord) -> float;  // Generate Perlin noise
+    auto Lerp(float left, float right, float val) -> float;  // Interpolate between two values
+    void GenerateTerrain();
 }

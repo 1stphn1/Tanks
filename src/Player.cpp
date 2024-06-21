@@ -1,6 +1,8 @@
 #include "Player.h"
 #include "Game.h"
 
+#include <iostream>
+
 Timer::Timer()
 {
     StartTiming();
@@ -8,77 +10,76 @@ Timer::Timer()
 
 void Timer::StartTiming()
 {
-    start_time = clock();
+    mStartTime = clock();
 }
 
-clock_t Timer::GetTime()
+auto Timer::GetTime() const -> clock_t
 {
-    return clock() - start_time;
+    return clock() - mStartTime;
 }
 
-Player::Player()
+Player::Player() :
+    mHP(kMaxHp),
+    mIsHuman(true),
+    mTankAngle(0),
+    mGunBarrelAngle(0),
+    mRenderRect({ 0, 0, kTankWidth, kTankHeight }),
+    mBarrelRenderRect({ 0, 0, kBarrelWidth, kBarrelHeight }),
+    mProjectile()
 {
-    mTankAngle = 0;
-    mGunBarrelAngle = 0;
-
-    mRenderRect.w = TANK_WIDTH;
-    mRenderRect.h = TANK_HEIGHT;
-
-    mRenderRect.x = WINDOW_WIDTH / 4;
-
-    mBarrelRenderRect.w = BARREL_WIDTH;
-    mBarrelRenderRect.h = BARREL_HEIGHT;
-
-    mIsHuman = true;
-    mHP = MAX_HP;
-}
-
-Player::~Player()
-{
-
 }
 
 Bot::Bot()
 {
-    mRenderRect.x = 3 * WINDOW_WIDTH / 4;
+    mRenderRect.x = 3 * kWindowWidth / 4;
 
-    mBarrelRenderRect.w = BARREL_WIDTH;
-    mBarrelRenderRect.h = BARREL_HEIGHT;
+    mBarrelRenderRect.w = kBarrelWidth;
+    mBarrelRenderRect.h = kBarrelHeight;
 
     mIsHuman = false;
 }
 
 void Player::Update()
 {
-    mRenderRect.y = Game::height - Game::terrain[mRenderRect.x] - TANK_HEIGHT;  // Calculates y position from terrain height at tank's x position
+    static int old_human_tank_x = Game::sPlayerX;
+    static int old_bot_tank_x = Game::sBotX;
 
-    int x2 = mRenderRect.x + std::cos(mTankAngle / RAD_IN_DEGREES) * (double)TANK_WIDTH;  // Calculates 2nd x position (the other end of the tank) by tank angle
-    int y2 = Game::height - Game::terrain[x2] - TANK_HEIGHT;  // Calculates 2nd y position based on height at x2
-
-    mTankAngle = -std::asin(static_cast<double>(mRenderRect.y - y2) / TANK_WIDTH) * RAD_IN_DEGREES;  // Calculates tank angle using asin of sin(angle)
+    if ((mIsHuman && old_human_tank_x != Game::sPlayerX) || (!mIsHuman && old_bot_tank_x != Game::sBotX)) {
+	   mRenderRect.y = Game::sHeight - Game::sTerrain[mRenderRect.x] - kTankHeight;  // Calculates y position from sTerrain sHeight at tank's x position
+	   int tank_right_end_x = mRenderRect.x + static_cast<int>(std::cos(mTankAngle / kRadInDegrees)) * kTankWidth;  // Calculates 2nd x position (other end of the tank) by tank angle
+	   int tank_right_end_y = Game::sHeight - Game::sTerrain[tank_right_end_x] - kTankHeight;  // Calculates 2nd y position based on sHeight at x2
+	   mTankAngle = -std::asin(static_cast<double>(mRenderRect.y - tank_right_end_y) / kTankWidth) * kRadInDegrees;  // Calculates tank angle using asin of sin(angle)
                                                                                                 // sin(angle) = opposite / hypothenuse
+	   if (mIsHuman) {
+		  old_human_tank_x = Game::sPlayerX;
+	   } else {
+		  old_bot_tank_x = Game::sBotX;
+	   }
+    }
 
-    // Calculates positions using circle coordinate formulas for x and y. Calculations are not fully precise for some reason. They are more precise with BARREL_X + 7
-    mBarrelRenderRect.x = mRenderRect.x + (double)(BARREL_X) * std::cos(std::abs(mTankAngle) / RAD_IN_DEGREES);
-    mBarrelRenderRect.y = mRenderRect.y + BARREL_Y + (double)(BARREL_X) * std::sin(mTankAngle / RAD_IN_DEGREES);
+    // Calculates positions using circle coordinate formulas for x and y. Calculations are not fully precise for some reason. They are more precise with kBarrelX + 7
+    mBarrelRenderRect.x = mRenderRect.x + static_cast<int>(kBarrelX * std::cos(std::abs(mTankAngle) / kRadInDegrees));
+    mBarrelRenderRect.y = mRenderRect.y + kBarrelY + static_cast<int>(kBarrelX * std::sin(mTankAngle / kRadInDegrees));
 
-    if (!mIsHuman)  // Bot is flipped horizontally, so barrel needs to be moved
-	   mBarrelRenderRect.x -= BARREL_X - 3;
+    if (!mIsHuman) {  // Bot is flipped horizontally, so barrel needs to be moved
+	   mBarrelRenderRect.x -= kBarrelX - 3;
+    }
 
-    if (mProjectile.mIsPresent)
+    if (mProjectile.mIsPresent) {
         mProjectile.Move(mIsHuman);
+    }
 }
 
 void Player::Render()
 {
     SDL_Point center;
 
-    center.x = (mIsHuman? 0 : BARREL_WIDTH);
-    center.y = BARREL_HEIGHT;
+    center.x = (mIsHuman? 0 : kBarrelWidth);
+    center.y = kBarrelHeight;
 
     SDL_RenderCopyEx(
-	   Game::renderer,
-	   Game::barrel_texture,
+	   Game::sRenderer,
+	   Game::sBarrelTexture,
 	   nullptr,
 	   &mBarrelRenderRect,
 	   mGunBarrelAngle + mTankAngle,
@@ -87,10 +88,10 @@ void Player::Render()
     );
 
     center.x = 0;
-    center.y = BARREL_Y;
+    center.y = kBarrelY;
     SDL_RenderCopyEx(
-	   Game::renderer,
-	   Game::tank_texture,
+	   Game::sRenderer,
+	   Game::sTankTexture,
 	   nullptr,
 	   &mRenderRect,
 	   mTankAngle,
@@ -99,12 +100,18 @@ void Player::Render()
     );
 
     if (mProjectile.mIsPresent) {
+	   int angle = static_cast<int>(std::atan(mProjectile.mYVelocity / mProjectile.mXVelocity) * kRadInDegrees);
+
+	   if (mIsHuman) {
+		  angle *= -1;
+	   }
+
         SDL_RenderCopyEx(
-		  Game::renderer,
-		  Game::projectile_texture,
+		  Game::sRenderer,
+		  Game::sProjectileTexture,
 		  nullptr,
 		  &mProjectile.mRenderRect,
-		  0,
+		  angle,
 		  nullptr,
 		  mIsHuman? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL
 	   );
@@ -112,14 +119,15 @@ void Player::Render()
 
     int hpbar_x;
 
-    if (mIsHuman)
+    if (mIsHuman) {
         hpbar_x = 50;
-    else
-        hpbar_x = WINDOW_WIDTH - 250;
+    } else {
+        hpbar_x = kWindowWidth - 250;
+    }
 
     for (int i = 0; i < mHP * 2; i += 2) {
-        SDL_RenderDrawLine(Game::renderer, hpbar_x + i, 20, hpbar_x + i, 50);
-        SDL_RenderDrawLine(Game::renderer, hpbar_x + i + 1, 20, hpbar_x + i + 1, 50);
+        SDL_RenderDrawLine(Game::sRenderer, hpbar_x + i, 20, hpbar_x + i, 50);
+        SDL_RenderDrawLine(Game::sRenderer, hpbar_x + i + 1, 20, hpbar_x + i + 1, 50);
     }
 }
 
@@ -131,11 +139,6 @@ void Player::Fire()
 void Player::ReduceHP()
 {
     mHP -= 5;
-}
-
-SDL_Rect Player::GetDestRect()
-{
-    return mRenderRect;
 }
 
 void Player::IncrementX(int val_to_add)
@@ -160,42 +163,51 @@ void Player::DecrementGunBarrelAngle()
     mGunBarrelAngle--;
 }
 
-int Player::GetX()
+auto Player::GetX() const -> int
 {
     return mRenderRect.x;
 }
 
-int Player::GetY()
+auto Player::GetY() const -> int
 {
     return mRenderRect.y;
 }
 
-int Player::GetHP()
+auto Player::GetHP() const -> int
 {
     return mHP;
 }
 
-double Player::GetBarrelAngle()
+auto Player::GetBarrelAngle() const -> double
 {
     return mGunBarrelAngle;
 }
 
+auto Player::GetDestRect() const -> SDL_Rect
+{
+    return mRenderRect;
+}
+
 void Projectile::Fire(double angle, double barrel_angle, const SDL_Rect& barrel_dest_rect)
 {
-    if (mTimer.GetTime() < 2000 || this->mIsPresent)
+    if (mTimer.GetTime() < 2000 || this->mIsPresent) {
         return;
+    }
 
     angle *= -1;  // SDL_RenderCopyEx function rotates up if the angle is negative. Here it needs to be positive
-    mYVelocity = (angle / 90.0) * PROJECTILE_VELOCITY;  // If the angle is 90, then all the velocity is on the y axis
+    mYVelocity = (angle / 90.0) * kProjectileVelocity;  // If the angle is 90, then all the velocity is on the y axis
 
-    mXVelocity = PROJECTILE_VELOCITY - mYVelocity; // Tank always fires with the same momentum, so when fired x speed + y speed should always be the same, regardless of the angle
+    mXVelocity = kProjectileVelocity - mYVelocity; // Tank always fires with the same momentum, so when fired x speed + y speed should always be the same, regardless of the angle
 
     barrel_angle *= -1;
 
+    mX = barrel_dest_rect.x + kBarrelWidth + 20 - static_cast<int>(std::cos(barrel_angle / kRadInDegrees) * kBarrelWidth);  // Calculates the bullet position
+    mY = barrel_dest_rect.y - kBarrelHeight - 10 - static_cast<int>(std::sin(barrel_angle / kRadInDegrees) * kBarrelWidth);
+
     mRenderRect.w = 32;
     mRenderRect.h = 32;
-    mRenderRect.x = mX = barrel_dest_rect.x + BARREL_WIDTH + 20 - std::cos(barrel_angle / RAD_IN_DEGREES) * (double)BARREL_WIDTH;  // Calculates the bullet position
-    mRenderRect.y = mY = barrel_dest_rect.y - BARREL_HEIGHT - 10 - std::sin(barrel_angle / RAD_IN_DEGREES) * (double)BARREL_WIDTH;
+    mRenderRect.x = static_cast<int>(mX);
+    mRenderRect.y = static_cast<int>(mY);
 
     mIsPresent = true;
     mTimer.StartTiming();
@@ -203,74 +215,55 @@ void Projectile::Fire(double angle, double barrel_angle, const SDL_Rect& barrel_
 
 void Projectile::Move(bool is_human)
 {
-    if (mY <= PROJECTILE_HEIGHT || mY >= WINDOW_HEIGHT - PROJECTILE_HEIGHT || mX <= PROJECTILE_WIDTH || mX >= WINDOW_WIDTH - PROJECTILE_WIDTH) {  // If the bullet is out of screen bounds
+    if (mY <= kProjectileHeight || mY >= kWindowHeight - kProjectileHeight ||
+	   mX <= kProjectileWidth || mX >= kWindowWidth - kProjectileWidth)
+    {  // If the bullet is out of screen bounds
         mIsPresent = false;
         return;
     }
 
-    mYVelocity -= GRAVITY_ACC;  // Decres y velocity by g
+    mYVelocity -= kGravityAcc;  // Decres y velocity by g
 
-    if (is_human)  // If the human fired the projectile, it goes to right. Bot's projectiles go to left
+    if (is_human) {  // If the human fired the projectile, it goes to right. Bot's projectiles go to left
         mX += mXVelocity;
-    else
+    } else {
         mX -= mXVelocity;
+    }
 
     mY -= mYVelocity;  // Decreases y coordinate by mYVelocity
 
-    mRenderRect.x = mX;
-    mRenderRect.y = mY;
+    mRenderRect.x = static_cast<int>(mX);
+    mRenderRect.y = static_cast<int>(mY);
 
-    if (Game::height - mRenderRect.y <= Game::terrain[mRenderRect.x]) {  // If projectile hit the ground
+    if (Game::sHeight - mRenderRect.y <= Game::sTerrain[mRenderRect.x]) {  // If projectile hit the ground
         mIsPresent = false;
 
-        Game::terrain[mRenderRect.x] -= std::sin(45 / RAD_IN_DEGREES) * 30;
+	   Game::ProjectileGroundImpact(mRenderRect.x);
 
-        for (int i = 1; i < 45; i++) {  // Reduces height of the terrain circulary
-            Game::terrain[mRenderRect.x + (45 - i)] -= std::sin(i / RAD_IN_DEGREES) * 30;
-            Game::terrain[mRenderRect.x - (45 - i)] -= std::sin(i / RAD_IN_DEGREES) * 30;
-        }
-
-        for (int i = 0; i < WINDOW_WIDTH - 1; i++) {  // Smoothes the terrain a little bit
-            if (Game::terrain[i + 1] > Game::terrain[i])
-                Game::terrain[i + 1] = Game::terrain[i] + 1;
-            else if (Game::terrain[i + 1] < Game::terrain[i])
-                Game::terrain[i + 1] = Game::terrain[i] - 1;
-        }
-
-        if (!is_human)  // Determines wether bot should raise or lower the barrel by knowing if projectile hit the ground behind or in frot of player
-            Game::BotRaiseOrLowerBarrel(mRenderRect.x > Game::player_x? true : false);
+        if (!is_human) {  // Determines wether bot should raise or lower the barrel by checking if projectile hit the ground behind or in frot of player
+            Game::BotRaiseOrLowerBarrel(mRenderRect.x > Game::sPlayerX);
+	   }
 
         return;
     }
 
-    int enemy_x, enemy_y;
+    int enemy_x;
+    int enemy_y;
 
-    if (is_human) {  // If the player is human, the enemy is bot, and vice versa
-        enemy_x = Game::bot_x;
-        enemy_y = Game::bot_y;
+    if (is_human) {
+        enemy_x = Game::sBotX;
+        enemy_y = Game::sBotY;
     } else {
-        enemy_x = Game::player_x;
-        enemy_y = Game::player_y;
+        enemy_x = Game::sPlayerX;
+        enemy_y = Game::sPlayerY;
     }
 
-    if (mRenderRect.x > enemy_x && mRenderRect.x < enemy_x + TANK_WIDTH && mRenderRect.y > enemy_y && mRenderRect.y < enemy_y + TANK_HEIGHT) {  // Checks wether the projectile hit the enemy
+    if (mRenderRect.x > enemy_x && mRenderRect.x < enemy_x + kTankWidth &&
+	   mRenderRect.y > enemy_y && mRenderRect.y < enemy_y + kTankHeight)
+    {  // Checks wether the projectile hit the enemy
         mIsPresent = false;
-
         Game::ReduceHP(!is_human);
-
-        Game::terrain[mRenderRect.x] -= std::sin(45 / RAD_IN_DEGREES) * 30;  // This code is the same as the one above
-
-        for (int i = 1; i < 45; i++) {
-            Game::terrain[mRenderRect.x + (45 - i)] -= std::sin(i / RAD_IN_DEGREES) * 30;
-            Game::terrain[mRenderRect.x - (45 - i)] -= std::sin(i / RAD_IN_DEGREES) * 30;
-        }
-
-        for (int i = 0; i < WINDOW_WIDTH - 1; i++) {
-            if (Game::terrain[i + 1] > Game::terrain[i])
-                Game::terrain[i + 1] = Game::terrain[i] + 1;
-            else if (Game::terrain[i + 1] < Game::terrain[i])
-                Game::terrain[i + 1] = Game::terrain[i] - 1;
-        }
+	   Game::ProjectileGroundImpact(mRenderRect.x);
     }
 }
 
@@ -283,12 +276,13 @@ void Bot::Action(int player_x)  // Determines what should bot do
 
     /* end_time = clock(); */
 
-    if (player_x - mRenderRect.x > IDEAL_DISTANCE && mRenderRect.x + TANK_WIDTH < WINDOW_WIDTH)
+    if (player_x - mRenderRect.x > kIdealDistance && mRenderRect.x + kTankWidth < kWindowWidth) {
         mRenderRect.x++;
-    else if (player_x - mRenderRect.x < IDEAL_DISTANCE && mRenderRect.x > 0)
+    } else if (player_x - mRenderRect.x < kIdealDistance && mRenderRect.x > 0) {
         mRenderRect.x--;
+    }
 
-    if (player_x - mRenderRect.x > IDEAL_DISTANCE - 50 || player_x - mRenderRect.x < IDEAL_DISTANCE + 50) {
+    if (player_x - mRenderRect.x > kIdealDistance - 50 || player_x - mRenderRect.x < kIdealDistance + 50) {
         this->Fire();
 
         /* start_time = clock(); */

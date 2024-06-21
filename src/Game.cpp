@@ -1,95 +1,101 @@
 #include "Game.h"
 
-const char* background_pictures[NUMBER_OF_PICTURES] = {
+#include <iostream>
+#include <random>
+#include <cmath>
+#include <ctime>
+
+const char *background_pictures[kNumberOfPictures] = {
     "assets/background1.png",
     "assets/background2.jpg",
     "assets/background3.jpg",
-    "assets/background4.webp",
     "assets/background5.jpg",
     "assets/background6.jpg",
     "assets/background7.jpg"
 };
 
-bool Game::InitGame(const char *window_title)
+auto Game::InitGame(const char *window_title) -> bool
 {
-    width  = WINDOW_WIDTH;  // TODO: make it get width and height from system resolution
-    height = WINDOW_HEIGHT;
+    sWidth  = kWindowWidth;  // TODO(1stphn1): make it get sWidth and sHeight from system resolution
+    sHeight = kWindowHeight;
 
-    running = false;
+    sRunning = false;
 
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         LOG("error at SDL_Init");
-        PrintError();
+        PRINT_ERROR();
         return false;
     }
 
     if (IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG) == 0) {
         LOG("error at IMG_Init");
-        PrintError();
+        PRINT_ERROR();
         return false;
     }
 
-    window = SDL_CreateWindow(window_title, 200, 200, width, height, SDL_WINDOW_SHOWN);
+    sWindow = SDL_CreateWindow(window_title, 200, 200, sWidth, sHeight, SDL_WINDOW_SHOWN);
 
-    if (window == nullptr) {
-        PrintError();
+    if (sWindow == nullptr) {
+        PRINT_ERROR();
         return false;
     }
 
-    renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    sRenderer = SDL_CreateRenderer(sWindow, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    if (renderer == nullptr) {
-        PrintError();
+    if (sRenderer == nullptr) {
+        PRINT_ERROR();
         return false;
     }
 
-    SDL_SetRenderDrawColor(renderer, 0xe0, 0xf, 0xf, 0xff);  // Sets to red for rendering health bars
+    SDL_SetRenderDrawColor(sRenderer, 0xe0, 0xf, 0xf, 0xff);  // Sets to red for rendering health bars
 
     srand(time(nullptr));
 
-    ground_texture     = LoadTexture("assets/ground.jpg");
-    surfacelay_texture = LoadTexture("assets/surface.png");
-    barrel_texture     = LoadTexture("assets/barrel.png");
-    tank_texture       = LoadTexture("assets/tank.png");
-    projectile_texture = LoadTexture("assets/projectile.png");
-    background_texture = LoadTexture(background_pictures[rand() % NUMBER_OF_PICTURES]);
+    sBackgroundTexture = LoadTexture(background_pictures[rand() % kNumberOfPictures]);
+    sGroundTexture     = LoadTexture("assets/ground.jpg");
+    sSurfacelayTexture = LoadTexture("assets/surface.png");
+    sTankTexture       = LoadTexture("assets/tank.png");
+    sBarrelTexture     = LoadTexture("assets/barrel.png");
+    sProjectileTexture = LoadTexture("assets/projectile.png");
 
     Noise::GenerateTerrain();
 
-    for (int i = 0; i < WINDOW_WIDTH - 1; i++) {  // Smoothens the terrain a little bit
-        if (Game::terrain[i + 1] > Game::terrain[i])
-            Game::terrain[i + 1] = Game::terrain[i] + 1;
-        else if (Game::terrain[i + 1] < Game::terrain[i])
-            Game::terrain[i + 1] = Game::terrain[i] - 1;
+    for (int i = 0; i < kWindowWidth - 1; i++) {  // Smoothens the sTerrain a little bit
+        if (Game::sTerrain[i + 1] > Game::sTerrain[i]) {
+            Game::sTerrain[i + 1] = Game::sTerrain[i] + 1;
+        } else if (Game::sTerrain[i + 1] < Game::sTerrain[i]) {
+            Game::sTerrain[i + 1] = Game::sTerrain[i] - 1;
+	   }
     }
 
-    for (int i = 1; i < WINDOW_WIDTH - 1; i++) {  // Smoothens the terrain, but different pairs
-        if (Game::terrain[i + 1] > Game::terrain[i])
-            Game::terrain[i + 1] = Game::terrain[i] + 1;
-        else if (Game::terrain[i + 1] < Game::terrain[i])
-            Game::terrain[i + 1] = Game::terrain[i] - 1;
-    }
+    /* for (int i = 1; i < kWindowWidth - 1; i++) {  // Smoothens the sTerrain, but different pairs */
+    /*     if (Game::sTerrain[i + 1] > Game::sTerrain[i]) { */
+    /*         Game::sTerrain[i + 1] = Game::sTerrain[i] + 1; */
+    /*     } else if (Game::sTerrain[i + 1] < Game::sTerrain[i]) { */
+    /*         Game::sTerrain[i + 1] = Game::sTerrain[i] - 1; */
+	   /* } */
+    /* } */
 
-    player = Player();
-    bot = Bot();
+    sPlayer = Player();
+    sBot = Bot();
 
-    running = true;
+    sRunning = true;
     return true;
 }
 
 void Game::Clean()
 {
-    running = false;
+    sRunning = false;
 
-    SDL_DestroyTexture(background_texture);
-    SDL_DestroyTexture(surfacelay_texture);
-    SDL_DestroyTexture(projectile_texture);
-    SDL_DestroyTexture(ground_texture);
-    SDL_DestroyTexture(barrel_texture);
-    SDL_DestroyTexture(tank_texture);
+    SDL_DestroyTexture(sBackgroundTexture);
+    SDL_DestroyTexture(sSurfacelayTexture);
+    SDL_DestroyTexture(sProjectileTexture);
+    SDL_DestroyTexture(sGroundTexture);
+    SDL_DestroyTexture(sBarrelTexture);
+    SDL_DestroyTexture(sTankTexture);
 
-    SDL_DestroyWindow(window);
-    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(sWindow);
+    SDL_DestroyRenderer(sRenderer);
     SDL_Quit();
     IMG_Quit();
 }
@@ -97,91 +103,100 @@ void Game::Clean()
 void Game::HandleEvents()
 {
     SDL_Event event;
-    bot.Action(player.GetX());
+    sBot.Action(sPlayer.GetX());
 
-    while (SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_QUIT) {
-            running = false;
+            sRunning = false;
             return;
         }
 
         switch (event.key.keysym.sym) {
             case SDLK_LEFT:
-                if (player.GetX() >= 3)
-                    player.DecrementX(3);
+                if (sPlayer.GetX() >= 3) {
+                    sPlayer.DecrementX(3);
+			 }
                 break;
             case SDLK_RIGHT:
-                if (player.GetX() + TANK_WIDTH <= WINDOW_WIDTH - 3)
-                    player.IncrementX(3);
+                if (sPlayer.GetX() + kTankWidth <= kWindowWidth - 3) {
+                    sPlayer.IncrementX(3);
+			 }
                 break;
             case SDLK_UP:
-                if (player.GetBarrelAngle() > -65)
-                   player.DecrementGunBarrelAngle();
+                if (sPlayer.GetBarrelAngle() > -65) {
+                   sPlayer.DecrementGunBarrelAngle();
+			 }
                 break;
             case SDLK_DOWN:
-                if (player.GetBarrelAngle() < 5)
-                    player.IncrementGunBarrelAngle();
+                if (sPlayer.GetBarrelAngle() < 5) {
+                    sPlayer.IncrementGunBarrelAngle();
+			 }
                 break;
             case SDLK_SPACE:
-                player.Fire();
+                sPlayer.Fire();
                 break;
             case SDLK_ESCAPE:
                 Clean();
                 break;
+		  default:
+			 break;
         }
     }
 }
 
 void Game::Update()
 {
-    if (player.GetHP() <= 0) {
+    if (sPlayer.GetHP() <= 0) {
         LOG("You lost");
-        running = false;
-        return;
-    } else if (bot.GetHP() <= 0) {
-        LOG("You won");
-        running = false;
+        sRunning = false;
         return;
     }
 
-    player_x = player.GetX();
-    player_y = player.GetY();
-    bot_x = bot.GetX();
-    bot_y = bot.GetY();
+    if (sBot.GetHP() <= 0) {
+        LOG("You won");
+        sRunning = false;
+        return;
+    }
 
-    player.Update();  
-    bot.Update(); 
+    sPlayerX = sPlayer.GetX();
+    sPlayerY = sPlayer.GetY();
+    sBotX = sBot.GetX();
+    sBotY = sBot.GetY();
+
+    sPlayer.Update();  
+    sBot.Update(); 
 }
 
 void Game::Render()
 {
-    SDL_RenderClear(renderer);
+    SDL_RenderClear(sRenderer);
 
     RenderMap();
-    player.Render();
-    bot.Render();
+    sPlayer.Render();
+    sBot.Render();
 
-    SDL_RenderPresent(renderer);
+    SDL_RenderPresent(sRenderer);
 }
 
-bool Game::IsRunning()
+auto Game::IsRunning() -> bool
 {
-    return running;
+    return sRunning;
 }
 
-SDL_Renderer *Game::GetRenderer()
+auto Game::GetRenderer() -> SDL_Renderer*
 {
-    return renderer;
+    return sRenderer;
 }
 
 void Game::RenderMap()
 {
-    SDL_RenderCopy(renderer, background_texture, nullptr, nullptr);
+    SDL_RenderCopy(sRenderer, sBackgroundTexture, nullptr, nullptr);
 
     const int ground_image_width  = 1600;
     const int ground_image_height = 800;
 
-    SDL_Rect src_rect, dst_rect;
+    SDL_Rect src_rect;
+    SDL_Rect dst_rect;
 
     src_rect.x = 0;
     src_rect.y = 0;
@@ -192,16 +207,17 @@ void Game::RenderMap()
     dst_rect.w = 1;
     dst_rect.h = ground_image_height;
 
-    for (int i = 0; i < WINDOW_WIDTH; i++) {  // This code renders terrain pixel by pixel. That's why src_rect.x increases by 1 every iteration        
-        dst_rect.y = WINDOW_HEIGHT - terrain[i];  // Calculates y from terrain height
-        src_rect.y = ground_image_height - terrain[i];  // Calculates src_rect.y so the texture would't stretch
-        dst_rect.h = terrain[i];
+    for (int height : sTerrain) {  // This code renders sTerrain pixel by pixel. That's why src_rect.x increases by 1 every iteration        
+        dst_rect.y = kWindowHeight - height;  // Calculates y from sTerrain sHeight
+        src_rect.y = ground_image_height - height;  // Calculates src_rect.y so the texture would't stretch
+        dst_rect.h = height;
 
-        SDL_RenderCopy(renderer, ground_texture, &src_rect, &dst_rect);
+        SDL_RenderCopy(sRenderer, sGroundTexture, &src_rect, &dst_rect);
 
         dst_rect.x++;
+	   src_rect.x++;
 
-        if (++src_rect.x == ground_image_width) {   // Starts rendering texture from begging if the end of the texture is reached
+        if (src_rect.x == ground_image_width) {   // Starts rendering texture from begging if the end of the texture is reached
             src_rect.x = 0;
         }
     }
@@ -213,93 +229,115 @@ void Game::RenderMap()
     dst_rect_surface_layer.w = 20;
     dst_rect_surface_layer.h = 20;
 
-    for (int i = 0; i < WINDOW_WIDTH; i++) {  // Renders surface layer
-        dst_rect_surface_layer.y = WINDOW_HEIGHT - terrain[i];
+    for (int i = 0; i < kWindowWidth; i++) {  // Renders surface layer
+        dst_rect_surface_layer.y = kWindowHeight - sTerrain[i];
 
         if (i != 0 && 
-		  (WINDOW_HEIGHT - terrain[i - 1]) - (WINDOW_HEIGHT - terrain[i]) <= 5  &&
-		  (WINDOW_HEIGHT - terrain[i - 1]) - (WINDOW_HEIGHT - terrain[i]) >= -5)
+		  (kWindowHeight - sTerrain[i - 1]) - (kWindowHeight - sTerrain[i]) <= 5  &&
+		  (kWindowHeight - sTerrain[i - 1]) - (kWindowHeight - sTerrain[i]) >= -5)
 	   {
-            dst_rect_surface_layer.y = WINDOW_HEIGHT - terrain[i - 1];
+            dst_rect_surface_layer.y = kWindowHeight - sTerrain[i - 1];
         }
 
-        SDL_RenderCopy(renderer, surfacelay_texture, nullptr, &dst_rect_surface_layer);
+        SDL_RenderCopy(sRenderer, sSurfacelayTexture, nullptr, &dst_rect_surface_layer);
         dst_rect_surface_layer.x++;
     }
 }
 
 void Game::BotRaiseOrLowerBarrel(bool raise)
 {
-    if (raise && bot.GetBarrelAngle() < 5)
-        bot.IncrementGunBarrelAngle();
-    else if (bot.GetBarrelAngle() > -65)
-        bot.DecrementGunBarrelAngle();
+    if (raise && sBot.GetBarrelAngle() < 5) {
+        sBot.IncrementGunBarrelAngle();
+    } else if (sBot.GetBarrelAngle() > -65) {
+        sBot.DecrementGunBarrelAngle();
+    }
 }
 
 void Game::ReduceHP(bool to_human)
 {
-    if (to_human)
-        player.ReduceHP();
-    else
-        bot.ReduceHP();
+    if (to_human) {
+        sPlayer.ReduceHP();
+    } else {
+        sBot.ReduceHP();
+    }
 }
 
-SDL_Texture *LoadTexture(const char *file_path)  // Returns null on failure
+void Game::ProjectileGroundImpact(int impact_x)
 {
-    SDL_Texture *texture = IMG_LoadTexture(Game::renderer, file_path);
+    sTerrain[impact_x] -= static_cast<int>(std::sin(45 / kRadInDegrees) * 30.0);
 
-    if (texture == nullptr)
+    for (int i = 1; i < 45; i++) {  // Reduces sHeight of the sTerrain circulary
+	   sTerrain[impact_x + (45 - i)] -= static_cast<int>(std::sin(static_cast<double>(i) / kRadInDegrees) * 30.0);
+	   sTerrain[impact_x - (45 - i)] -= static_cast<int>(std::sin(static_cast<double>(i) / kRadInDegrees) * 30.0);
+    }
+
+    /* for (int i = 0; i < kWindowWidth - 1; i++) {  // Smoothes the sTerrain a little bit */
+	   /* if (sTerrain[i + 1] > sTerrain[i]) { */
+		  /* sTerrain[i + 1] = sTerrain[i] + 1; */
+	   /* } else if (sTerrain[i + 1] < sTerrain[i]) { */
+		  /* sTerrain[i + 1] = sTerrain[i] - 1; */
+	   /* } */
+    /* } */
+}
+
+auto LoadTexture(const char *file_path) -> SDL_Texture*  // Returns null on failure
+{
+    SDL_Texture *texture = IMG_LoadTexture(Game::sRenderer, file_path);
+
+    if (texture == nullptr) {
 	   LOG("texture is null in LoadTexture");
+    }
 
     return texture;
 }
 
-double Distance(int x1, int y1, int x2, int y2)
+auto Distance(int x_1, int y_1, int x_2, int y_2) -> double
 {
-    return std::sqrt( std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2) );
+    return std::sqrt( std::pow(x_1 - x_2, 2) + std::pow(y_1 - y_2, 2) );
 }
 
-float Noise::RandomFloat() 
+namespace Noise
 {
-    static std::default_random_engine e(time(NULL));
-    static std::uniform_real_distribution<float> u(0, 1);
-    return u(e);
-}
+    auto RandomFloat() -> float 
+    {
+        static std::default_random_engine engine(std::random_device{}()); // Seed with a random device
+        static std::uniform_real_distribution<float> dist(0.0F, 1.0F);
+        return dist(engine);
+    }
 
-float Noise::Noise(float x)
-{
-    int x0 = floor(x);
-    /* int x1 = x0 + 1; */
-    float t = x - x0;
-    float v0 = RandomFloat();
-    float v1 = RandomFloat();
-    float noise = (1 - t) * v0 + t * v1;
-    return noise;
-}
+    auto Noise(float x_coord) -> float
+    {
+        int x_0 = static_cast<int>(std::floor(x_coord));
+        float lerp_val = x_coord - static_cast<float>(x_0);
+        float v_0 = RandomFloat();
+        float v_1 = RandomFloat();
+        return (1 - lerp_val) * v_0 + lerp_val * v_1;
+    }
 
-float Noise::Lerp(float a, float b, float t) 
-{
-    return (1 - t) * a + t * b;
-}
+    auto Lerp(float left, float right, float val) -> float 
+    {
+        return (1 - val) * left + val * right;
+    }
 
-void Noise::GenerateTerrain() 
-{
-    float range = 0.5;
-    float frequency = 0.05;
-    float amplitude = 1;
-    float persistence = 0.5;
+    void GenerateTerrain()
+    {
+        constexpr float kRange = 0.5F;
+        constexpr float kFrequency = 0.05F;
+        constexpr float kAmplitude = 1.0F;
+        constexpr float kPersistence = 0.5F;
 
-    for (int i = 0; i < WINDOW_WIDTH; i++) {
-        float total = 0;
-        float freq = frequency;
-        float amp = amplitude;
+        for (int i = 0; i < kWindowWidth; ++i) {
+            float total = 0.0F;
+            float freq = kFrequency;
+            float amp = kAmplitude;
 
-        for (int j = 0; j < 4; j++) {
-            total += Noise(i * freq) * amp;
-            freq *= 2;
-            amp *= persistence;
+            for (int j = 0; j < 4; ++j) {
+                total += Noise(static_cast<float>(i) * freq) * amp;
+                freq *= 2.0F;
+                amp *= kPersistence;
+            }
+
+		  Game::sTerrain[i] = static_cast<int>(std::round(total * (kWindowHeight / 2.0F) * kRange));
         }
-
-        Game::terrain[i] = std::round(Lerp(0, total, (float)WINDOW_HEIGHT / 2) * range);
     }
 }

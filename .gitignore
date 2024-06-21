@@ -46,7 +46,9 @@ CMakeUserPresets.json
 
 # Code completion and lsp config
 include/
+.cache/
 .clangd
 .clang_complete
+.clang-tidy
 
 build/
